@@ -973,7 +973,7 @@ async function loadSales() {
                                 <td>${name}</td>
                                 <td>${i.quantity}</td>
                                 <td class="text-end">${fmt(i.selling_price)}</td>
-                                <td class="text-end">${fmt(i.unit_cogs_inr)}</td>
+                                <td class="text-end">${fmt((i.unit_cogs_inr || 0) + (i.unit_freight_inr || 0) + (i.unit_handling_inr || 0))}</td>
                                 <td class="text-end ${i.line_profit >= 0 ? 'text-positive' : 'text-negative'}">${fmt(i.line_profit)}</td>
                             </tr>`;
                         }).join("")}
