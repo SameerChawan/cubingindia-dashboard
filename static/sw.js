@@ -1,4 +1,4 @@
-const CACHE_NAME = "cubingindia-v2";
+const CACHE_NAME = "cubingindia-v3";
 const STATIC_ASSETS = [
   "/",
   "/static/css/style.css",
@@ -10,7 +10,7 @@ const STATIC_ASSETS = [
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
 ];
 
-// Install — cache static assets
+// Install — pre-cache assets
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -32,28 +32,45 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch — network first for API, cache first for static
+// Fetch — network first for API + local assets, cache first for CDN
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // API requests — network only (don't cache data)
+  // API requests — network only
   if (url.pathname.startsWith("/api/") || url.pathname === "/login" || url.pathname === "/setup") {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Static assets — cache first, then network
+  // CDN assets — cache first (they're versioned URLs, won't change)
+  if (url.origin !== location.origin) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Local static assets — network first, fallback to cache
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        // Cache successful responses
+    fetch(event.request)
+      .then((response) => {
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });
