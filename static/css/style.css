@@ -1,0 +1,256 @@
+/* CubingIndia Dashboard Styles */
+
+body {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+}
+
+.navbar {
+    background-color: #16213e !important;
+}
+
+.card {
+    border-color: #2a2a4a;
+    background-color: #16213e;
+}
+
+.card-header {
+    background-color: #1a1a3e;
+    border-color: #2a2a4a;
+}
+
+.table {
+    --bs-table-bg: transparent;
+    color: #e0e0e0;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-pills .nav-link {
+    color: #a0a0c0;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #4361ee;
+    color: #fff;
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #e0e0e0;
+}
+
+.text-bg-primary { background-color: #4361ee !important; }
+.text-bg-success { background-color: #2ec4b6 !important; }
+.text-bg-warning { background-color: #ff9f1c !important; color: #000 !important; }
+.text-bg-info { background-color: #7209b7 !important; }
+
+.form-control, .form-select {
+    background-color: #1a1a2e;
+    border-color: #2a2a4a;
+    color: #e0e0e0;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #1a1a2e;
+    border-color: #4361ee;
+    color: #e0e0e0;
+    box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+}
+
+.badge { font-weight: 500; }
+
+.text-secondary { color: #8888aa !important; }
+
+.btn-outline-primary {
+    border-color: #4361ee;
+    color: #4361ee;
+}
+
+.btn-outline-primary:hover {
+    background-color: #4361ee;
+    color: #fff;
+}
+
+.btn-outline-danger {
+    border-color: #e63946;
+    color: #e63946;
+}
+
+.btn-outline-danger:hover {
+    background-color: #e63946;
+    color: #fff;
+}
+
+.bg-body-secondary {
+    background-color: #1a1a2e !important;
+}
+
+.progress {
+    background-color: #2a2a4a;
+}
+
+/* Status badges */
+.badge-in-stock { background-color: #2ec4b6; }
+.badge-low-stock { background-color: #ff9f1c; color: #000; }
+.badge-sold-out { background-color: #e63946; }
+.badge-damaged { background-color: #6c757d; }
+
+/* Positive/Negative amounts */
+.text-positive { color: #2ec4b6; }
+.text-negative { color: #e63946; }
+
+/* P&L Hover Tooltip */
+.pnl-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1060;
+    margin-top: 8px;
+    min-width: 320px;
+}
+
+.pnl-tooltip-inner {
+    background-color: #1a1a3e;
+    border: 1px solid #4361ee;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.pnl-tooltip-inner::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-bottom-color: #4361ee;
+}
+
+.card:hover .pnl-tooltip {
+    display: block;
+}
+
+.pnl-tooltip .table {
+    font-size: 0.82rem;
+}
+
+.pnl-tooltip .table td {
+    padding: 3px 8px;
+}
+
+/* ── Mobile Responsive ────────────────────────────────── */
+
+@media (max-width: 768px) {
+    /* Stack summary cards vertically */
+    .row.g-3.mb-3 > [class*="col-md"] {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Smaller card text */
+    .card-body h3 {
+        font-size: 1.3rem;
+    }
+
+    /* Scrollable tables */
+    .table-responsive {
+        font-size: 0.82rem;
+    }
+
+    .table th, .table td {
+        padding: 0.4rem 0.3rem;
+        white-space: nowrap;
+    }
+
+    /* Compact nav pills */
+    .nav-pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .nav-pills::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-pills .nav-link {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+        white-space: nowrap;
+    }
+
+    .nav-pills .nav-link .bi {
+        display: none;
+    }
+
+    /* Modal adjustments */
+    #allocateModal .card,
+    #adjustModal .card {
+        width: 95vw !important;
+    }
+
+    /* Form rows stack on mobile */
+    .row.g-2 > [class*="col-md"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Hide less important columns */
+    .table th:nth-child(n+6),
+    .table td:nth-child(n+6) {
+        display: none;
+    }
+
+    /* Keep action column visible */
+    .table th:last-child,
+    .table td:last-child {
+        display: table-cell;
+    }
+
+    /* P&L tooltip — full width on mobile */
+    .pnl-tooltip {
+        left: 0;
+        right: 0;
+        transform: none;
+        min-width: unset;
+    }
+
+    .pnl-tooltip-inner {
+        margin: 0 8px;
+    }
+
+    /* Chart containers */
+    .card-body canvas {
+        max-height: 200px;
+    }
+
+    /* Navbar compact */
+    .navbar-brand img {
+        height: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container-fluid {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .card-body h3 {
+        font-size: 1.1rem;
+    }
+
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+    }
+}

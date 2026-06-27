@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CubingIndia Dashboard</title>
+    <meta name="description" content="CubingIndia Business Dashboard — Inventory, Sales, P&L">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CubingIndia">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='img/icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Nav -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
+                <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="CubingIndia" height="36" class="me-2 rounded">
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="badge bg-secondary me-2">{{ display_name }}</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i></a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <!-- Tab Navigation -->
+        <ul class="nav nav-pills mb-3" id="mainTabs">
+            <li class="nav-item">
+                <button class="nav-link active" data-tab="dashboard">
+                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="consignments">
+                    <i class="bi bi-box me-1"></i>Consignments
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="inventory">
+                    <i class="bi bi-grid me-1"></i>Inventory
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="unified">
+                    <i class="bi bi-grid-3x3 me-1"></i>Unified View
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="sales">
+                    <i class="bi bi-cart me-1"></i>Sales
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="expenses">
+                    <i class="bi bi-wallet2 me-1"></i>Expenses
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="revenue">
+                    <i class="bi bi-cash-stack me-1"></i>Revenue
+                </button>
+            </li>
+        </ul>
+
+        <!-- ==================== DASHBOARD TAB ==================== -->
+        <div class="tab-pane active" id="tab-dashboard">
+            <div class="row g-3 mb-3" id="summaryCards">
+                <div class="col-md">
+                    <div class="card text-bg-primary h-100 position-relative">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-white-50 small">Net Profit</div>
+                                    <h3 id="netProfit" class="mb-0">--</h3>
+                                </div>
+                                <i class="bi bi-graph-up-arrow fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                        <!-- P&L Hover Tooltip -->
+                        <div class="pnl-tooltip" id="pnlHoverNet">
+                            <div class="pnl-tooltip-inner">
+                                <div class="fw-bold mb-2">Profit & Loss Breakdown</div>
+                                <table class="table table-sm mb-0" style="color:#e0e0e0">
+                                    <tbody id="pnlTableNet"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md">
+                    <div class="card text-bg-success h-100 position-relative">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-white-50 small">Revenue (Total)</div>
+                                    <h3 id="totalRevenue" class="mb-0">--</h3>
+                                </div>
+                                <i class="bi bi-currency-rupee fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                        <!-- P&L Hover Tooltip -->
+                        <div class="pnl-tooltip" id="pnlHoverRev">
+                            <div class="pnl-tooltip-inner">
+                                <div class="fw-bold mb-2">Profit & Loss Breakdown</div>
+                                <table class="table table-sm mb-0" style="color:#e0e0e0">
+                                    <tbody id="pnlTableRev"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md">
+                    <div class="card text-bg-warning h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-white-50 small">Inventory Value</div>
+                                    <h3 id="inventoryValue" class="mb-0">--</h3>
+                                </div>
+                                <i class="bi bi-box2 fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md">
+                    <div class="card text-bg-info h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-white-50 small">Items in Stock</div>
+                                    <h3 id="itemsInStock" class="mb-0">--</h3>
+                                </div>
+                                <i class="bi bi-layers fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md">
+                    <div class="card text-bg-secondary h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <div class="text-white-50 small">Gross Margin</div>
+                                    <h3 id="grossMarginCard" class="mb-0">--%</h3>
+                                </div>
+                                <i class="bi bi-percent fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row g-3 mb-3">
+                <!-- Revenue Composition Pie Chart -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header fw-bold">
+                            <i class="bi bi-pie-chart me-1"></i>Revenue Composition
+                        </div>
+                        <div class="card-body">
+                            <canvas id="revenuePieChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- Inventory Status Donut -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header fw-bold">
+                            <i class="bi bi-layers me-1"></i>Inventory Status
+                        </div>
+                        <div class="card-body">
+                            <canvas id="inventoryDonut" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Row -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header fw-bold">
+                            <i class="bi bi-download me-1"></i>Export Data
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-outline-success btn-sm" onclick="exportCSV('inventory')">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Inventory CSV
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportCSV('sales')">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Sales CSV
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportCSV('pnl')">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>P&L Summary CSV
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportCSV('expenses')">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Expenses CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CONSIGNMENTS TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-consignments">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Consignments</h5>
+                <button class="btn btn-primary btn-sm" onclick="showConsignmentForm()">
+                    <i class="bi bi-plus-lg me-1"></i>New Consignment
+                </button>
+            </div>
+            <!-- Form (hidden by default) -->
+            <div id="consignmentForm" class="card mb-3 d-none">
+                <div class="card-body">
+                    <form id="consignmentFormFields">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small">Name *</label>
+                                <input type="text" class="form-control form-control-sm" name="name" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Supplier</label>
+                                <input type="text" class="form-control form-control-sm" name="supplier">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Invoice #</label>
+                                <input type="text" class="form-control form-control-sm" name="invoice_number">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Invoice Date</label>
+                                <input type="date" class="form-control form-control-sm" name="invoice_date">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">COGS (USD) *</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="total_cogs_usd" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Freight (USD)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="total_freight_usd" value="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">USD→INR Rate *</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="usd_inr_rate" value="84.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideConsignmentForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- Expense sub-form -->
+            <div id="consignmentExpForm" class="card mb-3 d-none">
+                <div class="card-header small fw-bold">Add Handling Expense</div>
+                <div class="card-body">
+                    <form id="consExpFormFields">
+                        <input type="hidden" name="consignment_id">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small">Type</label>
+                                <select class="form-select form-select-sm" name="expense_type">
+                                    <option value="customs_duty">Customs Duty</option>
+                                    <option value="handling_fee">Handling Fee</option>
+                                    <option value="local_transport">Local Transport</option>
+                                    <option value="storage">Storage</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Amount (INR)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="amount_inr" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Date</label>
+                                <input type="date" class="form-control form-control-sm" name="expense_date">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success btn-sm w-100">Add</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- List -->
+            <div id="consignmentList"></div>
+        </div>
+
+        <!-- ==================== INVENTORY TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-inventory">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Inventory</h5>
+                <button class="btn btn-primary btn-sm" onclick="showProductForm()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Product
+                </button>
+            </div>
+            <div id="productForm" class="card mb-3 d-none">
+                <div class="card-body">
+                    <form id="productFormFields">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small">Consignment *</label>
+                                <select class="form-select form-select-sm" name="consignment_id" required></select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Product Name *</label>
+                                <input type="text" class="form-control form-control-sm" name="product_name" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Brand</label>
+                                <input type="text" class="form-control form-control-sm" name="brand">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Category</label>
+                                <select class="form-select form-select-sm" name="category">
+                                    <option value="2x2">2x2</option>
+                                    <option value="3x3" selected>3x3</option>
+                                    <option value="4x4">4x4</option>
+                                    <option value="5x5">5x5</option>
+                                    <option value="6x6">6x6</option>
+                                    <option value="7x7">7x7</option>
+                                    <option value="Pyraminx">Pyraminx</option>
+                                    <option value="Megaminx">Megaminx</option>
+                                    <option value="Skewb">Skewb</option>
+                                    <option value="Square-1">Square-1</option>
+                                    <option value="Clock">Clock</option>
+                                    <option value="Accessories">Accessories</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Variant</label>
+                                <input type="text" class="form-control form-control-sm" name="variant" placeholder="Magnetic, Stickerless">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Qty *</label>
+                                <input type="number" class="form-control form-control-sm" name="quantity_imported" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Unit Cost (USD) *</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="unit_cost_usd" required placeholder="$ per unit">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideProductForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- Inventory Filter -->
+            <div class="mb-2">
+                <select id="invStatusFilter" class="form-select form-select-sm" style="width:auto;display:inline-block">
+                    <option value="">All Status</option>
+                    <option value="in_stock">In Stock</option>
+                    <option value="low_stock">Low Stock</option>
+                    <option value="sold_out">Sold Out</option>
+                    <option value="damaged">Damaged</option>
+                </select>
+                <select id="invConsignmentFilter" class="form-select form-select-sm ms-2" style="width:auto;display:inline-block">
+                    <option value="">All Consignments</option>
+                </select>
+                <button class="btn btn-outline-success btn-sm ms-2" onclick="exportCSV('inventory')">
+                    <i class="bi bi-download me-1"></i>Export
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Brand</th>
+                            <th>Category</th>
+                            <th>Consignment</th>
+                            <th class="text-center">Imported</th>
+                            <th class="text-center">Sold</th>
+                            <th class="text-center">Allocated</th>
+                            <th class="text-center">Adjusted</th>
+                            <th class="text-center">Sellable</th>
+                            <th class="text-end">Unit (USD)</th>
+                            <th class="text-end">Unit (INR)</th>
+                            <th class="text-end">Inv. Value</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTable"></tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="4">Totals</td>
+                            <td class="text-center" id="invTotalImported">0</td>
+                            <td class="text-center" id="invTotalSold">0</td>
+                            <td class="text-center" id="invTotalAllocated">0</td>
+                            <td class="text-center" id="invTotalAdjusted">0</td>
+                            <td class="text-center" id="invTotalSellable">0</td>
+                            <td></td>
+                            <td></td>
+                            <td class="text-end" id="invTotalValue">0</td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== UNIFIED INVENTORY TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-unified">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Unified Inventory (Across All Consignments)</h5>
+                <button class="btn btn-outline-success btn-sm" onclick="exportCSV('unified')">
+                    <i class="bi bi-download me-1"></i>Export
+                </button>
+            </div>
+            <div class="mb-2">
+                <select id="uniCategoryFilter" class="form-select form-select-sm" style="width:auto;display:inline-block">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="uniBrandFilter" class="form-select form-select-sm ms-2" style="width:auto;display:inline-block">
+                    <option value="">All Brands</option>
+                </select>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Brand</th>
+                            <th>Category</th>
+                            <th class="text-center">Total Imported</th>
+                            <th class="text-center">Total Sold</th>
+                            <th class="text-center">Total Allocated</th>
+                            <th class="text-center">Total Adjusted</th>
+                            <th class="text-center">Total Remaining</th>
+                            <th class="text-end">Avg Unit Cost (INR)</th>
+                            <th class="text-end">Total Inv Value</th>
+                            <th class="text-center">Consignments</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unifiedTable"></tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="3">Totals</td>
+                            <td class="text-center" id="uniTotalImported">0</td>
+                            <td class="text-center" id="uniTotalSold">0</td>
+                            <td class="text-center" id="uniTotalAllocated">0</td>
+                            <td class="text-center" id="uniTotalAdjusted">0</td>
+                            <td class="text-center" id="uniTotalRemaining">0</td>
+                            <td></td>
+                            <td class="text-end" id="uniTotalValue">0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== SALES TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-sales">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Sales</h5>
+                <button class="btn btn-primary btn-sm" onclick="showSaleForm()">
+                    <i class="bi bi-plus-lg me-1"></i>New Sale
+                </button>
+            </div>
+            <div id="saleForm" class="card mb-3 d-none">
+                <div class="card-body">
+                    <form id="saleFormFields">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-2">
+                                <label class="form-label small">Date *</label>
+                                <input type="date" class="form-control form-control-sm" name="sale_date" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Channel *</label>
+                                <select class="form-select form-select-sm" name="channel" required>
+                                    <option value="shop">Shop (Online)</option>
+                                    <option value="competition">Competition</option>
+                                    <option value="exhibition">Exhibition</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Customer</label>
+                                <input type="text" class="form-control form-control-sm" name="customer_name">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Discount</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="discount" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                        </div>
+                        <div class="card bg-body-secondary mb-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="small fw-bold">Line Items</span>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSaleItem()">
+                                        <i class="bi bi-plus"></i> Add Item
+                                    </button>
+                                </div>
+                                <div id="saleItemsContainer"></div>
+                            </div>
+                        </div>
+                        <div class="text-end mb-2">
+                            <span class="me-3">Total: <strong id="saleTotalPreview">₹0</strong></span>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm">Save Sale</button>
+                        <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideSaleForm()">Cancel</button>
+                    </form>
+                </div>
+            </div>
+            <!-- Sales List -->
+            <div id="salesList"></div>
+        </div>
+
+        <!-- ==================== EXPENSES TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-expenses">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Operating Expenses</h5>
+                <button class="btn btn-primary btn-sm" onclick="showExpenseForm()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Expense
+                </button>
+            </div>
+            <div id="expenseForm" class="card mb-3 d-none">
+                <div class="card-body">
+                    <form id="expenseFormFields">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label small">Date *</label>
+                                <input type="date" class="form-control form-control-sm" name="expense_date" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Category *</label>
+                                <select class="form-select form-select-sm" name="category" required>
+                                    <option value="postage">Postage / Courier</option>
+                                    <option value="packaging">Packaging</option>
+                                    <option value="rent">Rent</option>
+                                    <option value="marketing">Marketing</option>
+                                    <option value="utilities">Utilities</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Amount (INR) *</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="amount_inr" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Description</label>
+                                <input type="text" class="form-control form-control-sm" name="description">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideExpenseForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th class="text-end">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseTable"></tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="3">Total</td>
+                            <td class="text-end" id="expenseTotal">₹0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==================== REVENUE TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-revenue">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Other Revenue (Competitions, etc.)</h5>
+                <button class="btn btn-primary btn-sm" onclick="showRevenueForm()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Revenue
+                </button>
+            </div>
+            <div id="revenueForm" class="card mb-3 d-none">
+                <div class="card-body">
+                    <form id="revenueFormFields">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label small">Date *</label>
+                                <input type="date" class="form-control form-control-sm" name="revenue_date" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Source *</label>
+                                <select class="form-select form-select-sm" name="source" required>
+                                    <option value="competition_entry">Competition Entry Fees</option>
+                                    <option value="sponsorship">Sponsorship</option>
+                                    <option value="exhibition_sales">Exhibition Sales</option>
+                                    <option value="prize_money">Prize Money</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Amount (INR) *</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="amount_inr" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Description</label>
+                                <input type="text" class="form-control form-control-sm" name="description">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Notes</label>
+                                <input type="text" class="form-control form-control-sm" name="notes">
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideRevenueForm()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Source</th>
+                            <th>Description</th>
+                            <th class="text-end">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="revenueTable"></tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="3">Total</td>
+                            <td class="text-end" id="revenueTotal">₹0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <!-- Allocate Stock Modal -->
+    <div id="allocateModal" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background:rgba(0,0,0,0.6);z-index:1050">
+        <div class="card position-absolute top-50 start-50 translate-middle" style="width:420px">
+            <div class="card-header fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-bookmark me-1"></i>Allocate Stock</span>
+                <button class="btn btn-sm py-0" onclick="hideAllocateForm()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Product: <strong id="allocProductName"></strong></p>
+                <p class="small text-secondary mb-3">Available: <span id="allocMaxQty"></span> units</p>
+                <form id="allocateFormFields">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Type *</label>
+                            <select class="form-select form-select-sm" name="allocation_type">
+                                <option value="company_use">Company Use</option>
+                                <option value="promotion">Promotion / Giveaway</option>
+                                <option value="event">Competition / Event</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Qty *</label>
+                            <input type="number" class="form-control form-control-sm" name="quantity" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Date</label>
+                            <input type="date" class="form-control form-control-sm" name="allocation_date">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Reason</label>
+                        <input type="text" class="form-control form-control-sm" name="reason" placeholder="e.g. Demo unit for competition">
+                    </div>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="submitAllocation()">Allocate</button>
+                    <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideAllocateForm()">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Adjustment Modal -->
+    <div id="adjustModal" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background:rgba(0,0,0,0.6);z-index:1050">
+        <div class="card position-absolute top-50 start-50 translate-middle" style="width:420px">
+            <div class="card-header fw-bold d-flex justify-content-between">
+                <span><i class="bi bi-exclamation-triangle me-1"></i>Stock Adjustment</span>
+                <button class="btn btn-sm py-0" onclick="hideAdjustForm()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Product: <strong id="adjProductName"></strong></p>
+                <p class="small text-secondary mb-3">Remaining: <span id="adjMaxQty"></span> units</p>
+                <form id="adjustFormFields">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Type *</label>
+                            <select class="form-select form-select-sm" name="adjustment_type">
+                                <option value="damaged">Damaged</option>
+                                <option value="lost">Lost / Missing</option>
+                                <option value="returned">Returned (Restored)</option>
+                                <option value="found">Found (Restored)</option>
+                                <option value="correction">Correction</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Qty *</label>
+                            <input type="number" class="form-control form-control-sm" name="quantity" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Date</label>
+                            <input type="date" class="form-control form-control-sm" name="adjustment_date">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Reason</label>
+                        <input type="text" class="form-control form-control-sm" name="reason" placeholder="e.g. Box damaged during transit">
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="submitAdjustment()">Adjust Stock</button>
+                    <button type="button" class="btn btn-secondary btn-sm ms-1" onclick="hideAdjustForm()">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/static/sw.js")
+                .then((reg) => console.log("SW registered:", reg.scope))
+                .catch((err) => console.log("SW registration failed:", err));
+        }
+    </script>
+</body>
+</html>
