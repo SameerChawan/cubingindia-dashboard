@@ -1,4 +1,4 @@
-const CACHE_NAME = "cubingindia-v1";
+const CACHE_NAME = "cubingindia-v2";
 const STATIC_ASSETS = [
   "/",
   "/static/css/style.css",
