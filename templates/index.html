@@ -73,6 +73,30 @@
 
         <!-- ==================== DASHBOARD TAB ==================== -->
         <div class="tab-pane active" id="tab-dashboard">
+            <!-- Date Range Filter -->
+            <div class="card mb-3" id="dateFilterBar">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <span class="small text-secondary me-1"><i class="bi bi-calendar3 me-1"></i>Period:</span>
+                        <div class="btn-group btn-group-sm" id="dateQuickFilters">
+                            <button class="btn btn-outline-light active" data-range="all">All Time</button>
+                            <button class="btn btn-outline-light" data-range="mtd">MTD</button>
+                            <button class="btn btn-outline-light" data-range="qtd">QTD</button>
+                            <button class="btn btn-outline-light" data-range="ytd">YTD</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-1 ms-2">
+                            <input type="date" class="form-control form-control-sm" id="dateStart" style="width:auto">
+                            <span class="text-secondary small">to</span>
+                            <input type="date" class="form-control form-control-sm" id="dateEnd" style="width:auto">
+                            <button class="btn btn-primary btn-sm" id="applyCustomDate" title="Apply custom range">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </div>
+                        <span class="small text-secondary ms-auto" id="activeRangeLabel">Showing: All Time</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-3 mb-3" id="summaryCards">
                 <div class="col-md">
                     <div class="card text-bg-primary h-100 position-relative">
@@ -180,6 +204,23 @@
                         </div>
                         <div class="card-body">
                             <canvas id="inventoryDonut" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Trend Chart -->
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header fw-bold">
+                            <i class="bi bi-graph-up me-1"></i>Sales Trend
+                        </div>
+                        <div class="card-body">
+                            <canvas id="salesTrendChart" height="200"></canvas>
+                            <div id="noTrendData" class="text-center text-secondary py-4 d-none">
+                                <i class="bi bi-bar-chart-line fs-1 d-block mb-2"></i>No sales data in this period
+                            </div>
                         </div>
                     </div>
                 </div>

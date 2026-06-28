@@ -1,4 +1,4 @@
-/* CubingIndia Dashboard - Frontend Logic (v4 - with Adjustments, Charts, CSV Export) */
+/* CubingIndia Dashboard - Frontend Logic (v5 - with Date Filters & Sales Trend) */
 
 const API = "";
 let _consignments = [];
@@ -6,6 +6,8 @@ let _products = [];
 let _saleItemCounter = 0;
 let _revenuePieChart = null;
 let _inventoryDonut = null;
+let _salesTrendChart = null;
+let _dashboardRange = { start: null, end: null, label: "All Time" };
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -64,7 +66,13 @@ document.querySelectorAll("[data-tab]").forEach(btn => {
 
 async function loadDashboard() {
     try {
-        const d = await api("GET", "/api/dashboard/summary");
+        // Build query string with date range
+        let qs = "";
+        if (_dashboardRange.start) qs += `start_date=${_dashboardRange.start}`;
+        if (_dashboardRange.end) qs += `${qs ? "&" : ""}end_date=${_dashboardRange.end}`;
+        const url = "/api/dashboard/summary" + (qs ? "?" + qs : "");
+
+        const d = await api("GET", url);
 
         document.getElementById("netProfit").textContent = fmt(d.pnl.net_profit);
         document.getElementById("totalRevenue").textContent = fmt(d.pnl.sales_revenue + d.pnl.other_revenue);
@@ -100,6 +108,7 @@ async function loadDashboard() {
         // Update charts
         renderRevenuePieChart(d.revenue_breakdown);
         renderInventoryDonut(d.inventory);
+        renderSalesTrendChart(d.sales_trend || []);
 
     } catch (e) {
         toast("Dashboard error: " + e.message, "danger");
@@ -220,6 +229,160 @@ function renderInventoryDonut(inventory) {
         }
     });
 }
+
+function renderSalesTrendChart(trend) {
+    const ctx = document.getElementById("salesTrendChart");
+    const noData = document.getElementById("noTrendData");
+    if (!ctx) return;
+
+    if (_salesTrendChart) _salesTrendChart.destroy();
+
+    if (!trend || trend.length === 0) {
+        ctx.style.display = "none";
+        if (noData) noData.classList.remove("d-none");
+        return;
+    }
+    ctx.style.display = "block";
+    if (noData) noData.classList.add("d-none");
+
+    const labels = trend.map(t => t.period);
+    const revenue = trend.map(t => t.revenue);
+    const profit = trend.map(t => t.profit);
+
+    _salesTrendChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "Revenue",
+                    data: revenue,
+                    borderColor: "#2ec4b6",
+                    backgroundColor: "rgba(46, 196, 182, 0.1)",
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: "#2ec4b6",
+                    borderWidth: 2,
+                },
+                {
+                    label: "Profit",
+                    data: profit,
+                    borderColor: "#4361ee",
+                    backgroundColor: "rgba(67, 97, 238, 0.1)",
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: "#4361ee",
+                    borderWidth: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: "index",
+            },
+            plugins: {
+                legend: {
+                    position: "top",
+                    labels: { color: "#e0e0e0", font: { size: 12 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${fmt(context.raw)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#8888aa", font: { size: 11 } },
+                    grid: { color: "rgba(255,255,255,0.05)" },
+                },
+                y: {
+                    ticks: {
+                        color: "#8888aa",
+                        font: { size: 11 },
+                        callback: function(value) { return fmt(value); }
+                    },
+                    grid: { color: "rgba(255,255,255,0.05)" },
+                }
+            }
+        }
+    });
+}
+
+// ── Date Range Filters ──────────────────────────────────
+
+function setDateRange(range) {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const d = today.getDate();
+    const pad = (n) => String(n).padStart(2, "0");
+    const fmtDate = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+
+    switch (range) {
+        case "all":
+            _dashboardRange = { start: null, end: null, label: "All Time" };
+            break;
+        case "mtd":
+            _dashboardRange = { start: `${y}-${pad(m + 1)}-01`, end: fmtDate(today), label: "MTD" };
+            break;
+        case "qtd": {
+            const qStart = Math.floor(m / 3) * 3;
+            _dashboardRange = { start: `${y}-${pad(qStart + 1)}-01`, end: fmtDate(today), label: "QTD" };
+            break;
+        }
+        case "ytd":
+            _dashboardRange = { start: `${y}-01-01`, end: fmtDate(today), label: "YTD" };
+            break;
+    }
+
+    // Clear custom date inputs
+    document.getElementById("dateStart").value = _dashboardRange.start || "";
+    document.getElementById("dateEnd").value = _dashboardRange.end || "";
+
+    // Update active button
+    document.querySelectorAll("#dateQuickFilters .btn").forEach(b => b.classList.remove("active"));
+    const activeBtn = document.querySelector(`#dateQuickFilters [data-range="${range}"]`);
+    if (activeBtn) activeBtn.classList.add("active");
+
+    // Update label
+    document.getElementById("activeRangeLabel").textContent = `Showing: ${_dashboardRange.label}`;
+
+    loadDashboard();
+}
+
+// Quick filter buttons
+document.querySelectorAll("#dateQuickFilters .btn").forEach(btn => {
+    btn.addEventListener("click", () => setDateRange(btn.dataset.range));
+});
+
+// Custom date range
+document.getElementById("applyCustomDate").addEventListener("click", () => {
+    const start = document.getElementById("dateStart").value;
+    const end = document.getElementById("dateEnd").value;
+    if (!start && !end) {
+        setDateRange("all");
+        return;
+    }
+    _dashboardRange = {
+        start: start || null,
+        end: end || null,
+        label: (start || "...") + " to " + (end || "today")
+    };
+
+    // Remove active from quick buttons
+    document.querySelectorAll("#dateQuickFilters .btn").forEach(b => b.classList.remove("active"));
+
+    document.getElementById("activeRangeLabel").textContent = `Showing: ${_dashboardRange.label}`;
+    loadDashboard();
+});
 
 // ── CSV Export ──────────────────────────────────────
 

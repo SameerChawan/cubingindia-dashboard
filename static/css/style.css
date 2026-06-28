@@ -147,6 +147,46 @@ body {
     padding: 3px 8px;
 }
 
+/* ── Date Filter Bar ────────────────────────────────── */
+
+#dateFilterBar {
+    border-color: #2a2a4a;
+    background-color: #16213e;
+}
+
+#dateFilterBar .card-body {
+    padding: 0.5rem 1rem;
+}
+
+#dateQuickFilters .btn {
+    border-color: #4361ee;
+    color: #a0a0c0;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.7rem;
+}
+
+#dateQuickFilters .btn.active {
+    background-color: #4361ee;
+    border-color: #4361ee;
+    color: #fff;
+}
+
+#dateQuickFilters .btn:hover:not(.active) {
+    background-color: rgba(67, 97, 238, 0.15);
+    color: #e0e0e0;
+}
+
+#dateStart, #dateEnd {
+    width: 140px;
+    font-size: 0.82rem;
+    padding: 0.25rem 0.5rem;
+}
+
+#activeRangeLabel {
+    font-size: 0.78rem;
+    color: #8888aa;
+}
+
 /* ── Mobile Responsive ────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -236,6 +276,25 @@ body {
     /* Navbar compact */
     .navbar-brand img {
         height: 28px;
+    }
+
+    /* Date filter bar — stack on mobile */
+    #dateFilterBar .card-body .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 0.5rem;
+    }
+
+    #dateFilterBar .d-flex.align-items-center.gap-1 {
+        width: 100%;
+    }
+
+    #dateStart, #dateEnd {
+        width: 120px;
+    }
+
+    #activeRangeLabel {
+        margin-left: 0 !important;
     }
 }
 

@@ -1,6 +1,7 @@
-"""API routes for CubingIndia Dashboard (v4 - USD/INR + Allocations + Auth + Adjustments)."""
+"""API routes for CubingIndia Dashboard (v5 - with Date Filters & Sales Trend)."""
 from flask import Blueprint, request, jsonify
-from datetime import date
+from datetime import date, datetime
+from collections import defaultdict
 import db
 from auth import login_required
 
@@ -20,6 +21,17 @@ def ok(data=None, msg="ok"):
 
 def fail(msg, code=400):
     return jsonify({"ok": False, "msg": msg}), code
+
+def in_date_range(date_str, start_date, end_date):
+    """Check if a date string (YYYY-MM-DD) falls within the range."""
+    if not date_str:
+        return True
+    if start_date and date_str < start_date:
+        return False
+    if end_date and date_str > end_date:
+        return False
+    return True
+
 
 def calc_product_landed(product, consignment, all_cons_products, cons_expenses):
     """Calculate proportional landed cost for a single product.
@@ -502,6 +514,10 @@ def delete_revenue(rid):
 
 @api.get("/api/dashboard/summary")
 def dashboard_summary():
+    # Date range filter (optional — defaults to All Time)
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
     consignments = db.query("ci_consignments")
     products = db.query("ci_products")
     sales = db.query("ci_sales")
@@ -511,7 +527,16 @@ def dashboard_summary():
     cons_expenses = db.query("ci_consignment_expenses")
     adjustments = db.query("ci_stock_adjustments")
 
-    # ── Inventory Summary ──
+    # Filter sales, expenses, revenue by date range
+    filtered_sales = [s for s in sales if in_date_range(s.get("sale_date"), start_date, end_date)]
+    filtered_expenses = [e for e in expenses if in_date_range(e.get("expense_date"), start_date, end_date)]
+    filtered_revenue = [r for r in revenue if in_date_range(r.get("revenue_date"), start_date, end_date)]
+
+    # Sale items belonging to filtered sales
+    filtered_sale_ids = {s["id"] for s in filtered_sales}
+    filtered_sale_items = [si for si in sale_items if si.get("sale_id") in filtered_sale_ids]
+
+    # ── Inventory Summary ── (always full — not date-filtered)
     total_imported = sum(int(p.get("quantity_imported", 0)) for p in products)
     total_sold = sum(int(p.get("quantity_sold", 0)) for p in products)
     total_allocated = sum(int(p.get("quantity_allocated", 0)) for p in products)
@@ -534,31 +559,31 @@ def dashboard_summary():
                 unit_landed = float(p.get("unit_cost_usd", 0)) * 84.0
             inventory_value += remaining * unit_landed
 
-    # ── P&L (Amortized) ──
-    total_sales_revenue = sum(float(s.get("final_amount", 0)) for s in sales)
+    # ── P&L (Amortized) — using filtered data ──
+    total_sales_revenue = sum(float(s.get("final_amount", 0)) for s in filtered_sales)
 
     total_cogs = sum(
         float(si.get("unit_cogs_inr", 0)) * int(si.get("quantity", 0))
-        for si in sale_items
+        for si in filtered_sale_items
     )
     total_freight_cost = sum(
         float(si.get("unit_freight_inr", 0)) * int(si.get("quantity", 0))
-        for si in sale_items
+        for si in filtered_sale_items
     )
     total_handling_cost = sum(
         float(si.get("unit_handling_inr", 0)) * int(si.get("quantity", 0))
-        for si in sale_items
+        for si in filtered_sale_items
     )
     total_landed_cogs = total_cogs + total_freight_cost + total_handling_cost
 
     gross_profit = total_sales_revenue - total_landed_cogs
 
-    total_operating_expenses = sum(float(e.get("amount_inr", 0)) for e in expenses)
-    total_other_revenue = sum(float(r.get("amount_inr", 0)) for r in revenue)
+    total_operating_expenses = sum(float(e.get("amount_inr", 0)) for e in filtered_expenses)
+    total_other_revenue = sum(float(r.get("amount_inr", 0)) for r in filtered_revenue)
 
     net_profit = gross_profit - total_operating_expenses + total_other_revenue
 
-    # ── Per-consignment breakdown ──
+    # ── Per-consignment breakdown ── (using filtered sale items)
     consignment_pl = []
     for c in consignments:
         c_products = [p for p in products if p.get("consignment_id") == c["id"]]
@@ -590,7 +615,7 @@ def dashboard_summary():
             for p in c_products
         )
 
-        c_sale_items = [si for si in sale_items
+        c_sale_items = [si for si in filtered_sale_items
                         if si.get("product_id") in [p["id"] for p in c_products]]
         c_revenue = sum(float(si.get("selling_price", 0)) * int(si.get("quantity", 0))
                         for si in c_sale_items)
@@ -599,7 +624,7 @@ def dashboard_summary():
         c_freight_sold = sum(float(si.get("unit_freight_inr", 0)) * int(si.get("quantity", 0))
                              for si in c_sale_items)
         c_handling_sold = sum(float(si.get("unit_handling_inr", 0)) * int(si.get("quantity", 0))
-                              for si in c_sale_items)
+                               for si in c_sale_items)
         c_profit = c_revenue - c_cogs_sold - c_freight_sold - c_handling_sold
 
         consignment_pl.append({
@@ -625,24 +650,68 @@ def dashboard_summary():
             "recon_ok": abs(products_cogs_sum_usd - c_cogs_usd) < 0.01,
         })
 
-    recent_sales = sorted(sales, key=lambda s: s.get("sale_date", ""), reverse=True)[:5]
+    recent_sales = sorted(filtered_sales, key=lambda s: s.get("sale_date", ""), reverse=True)[:5]
 
-    # ── Revenue Breakdown by Source ──
+    # ── Revenue Breakdown by Source (filtered) ──
     sales_by_channel = {}
-    for s in sales:
+    for s in filtered_sales:
         ch = s.get("channel", "other")
         sales_by_channel[ch] = sales_by_channel.get(ch, 0) + float(s.get("final_amount", 0))
 
     revenue_by_source = {}
-    for r in revenue:
+    for r in filtered_revenue:
         src = r.get("source", "other")
         revenue_by_source[src] = revenue_by_source.get(src, 0) + float(r.get("amount_inr", 0))
 
-    # ── Adjustment Summary ──
+    # ── Adjustment Summary (full — not date-filtered) ──
     adjustments_by_type = {}
     for a in adjustments:
         at = a.get("adjustment_type", "other")
         adjustments_by_type[at] = adjustments_by_type.get(at, 0) + int(a.get("quantity", 0))
+
+    # ── Sales Trend (grouped by week or month) ──
+    if filtered_sales:
+        # Determine grouping: if range > 90 days use monthly, else weekly
+        if start_date and end_date:
+            d1 = datetime.strptime(start_date, "%Y-%m-%d")
+            d2 = datetime.strptime(end_date, "%Y-%m-%d")
+            span_days = (d2 - d1).days
+        else:
+            span_days = 365  # default to monthly for all-time
+
+        trend_group = "month" if span_days > 90 else "week"
+
+        # Build a lookup: sale_id -> sale_date
+        sale_date_map = {s["id"]: s.get("sale_date", "") for s in filtered_sales}
+
+        # Group by period
+        trend_data = defaultdict(lambda: {"revenue": 0, "cogs": 0, "profit": 0})
+        for si in filtered_sale_items:
+            sid = si.get("sale_id")
+            sdate = sale_date_map.get(sid, "")
+            if not sdate:
+                continue
+            dt = datetime.strptime(sdate, "%Y-%m-%d")
+            if trend_group == "month":
+                key = dt.strftime("%Y-%m")
+            else:
+                # ISO week: YYYY-Www
+                key = f"{dt.isocalendar()[0]}-W{dt.isocalendar()[1]:02d}"
+
+            qty = int(si.get("quantity", 0))
+            rev = float(si.get("selling_price", 0)) * qty
+            cogs_val = (float(si.get("unit_cogs_inr", 0)) + float(si.get("unit_freight_inr", 0)) + float(si.get("unit_handling_inr", 0))) * qty
+            trend_data[key]["revenue"] += rev
+            trend_data[key]["cogs"] += cogs_val
+            trend_data[key]["profit"] += (rev - cogs_val)
+
+        # Sort by period key
+        sales_trend = [
+            {"period": k, "revenue": round(v["revenue"], 2), "cogs": round(v["cogs"], 2), "profit": round(v["profit"], 2)}
+            for k, v in sorted(trend_data.items())
+        ]
+    else:
+        sales_trend = []
 
     return ok({
         "inventory": {
@@ -674,6 +743,7 @@ def dashboard_summary():
             "total_other_revenue": round(sum(revenue_by_source.values()), 2),
         },
         "adjustments_summary": adjustments_by_type,
+        "sales_trend": sales_trend,
     })
 
 
