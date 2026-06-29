@@ -189,6 +189,12 @@ body {
 
 /* ── Mobile Responsive ────────────────────────────────── */
 
+/* Xingle Price Tab */
+.mono {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
 @media (max-width: 768px) {
     /* Stack summary cards vertically */
     .row.g-3.mb-3 > [class*="col-md"] {

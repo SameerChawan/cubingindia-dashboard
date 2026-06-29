@@ -58,6 +58,7 @@ document.querySelectorAll("[data-tab]").forEach(btn => {
             case "sales": loadSales(); break;
             case "expenses": loadExpenses(); break;
             case "revenue": loadRevenue(); break;
+            case "xingle": loadXingleConfig(); break;
         }
     });
 });
@@ -1269,6 +1270,198 @@ async function deleteRevenue(rid) {
         toast("Deleted");
         loadRevenue();
     } catch (e) { toast(e.message, "danger"); }
+}
+
+// ── XingleToy Price Lookup ──────────────────────────────
+
+let _xingleConfig = {};
+let _xingleResults = [];
+
+function toggleXingleSettings() {
+    const body = document.getElementById("xingleSettingsBody");
+    const icon = document.getElementById("xingleSettingsIcon");
+    if (body.classList.contains("d-none")) {
+        body.classList.remove("d-none");
+        icon.className = "bi bi-chevron-up";
+    } else {
+        body.classList.add("d-none");
+        icon.className = "bi bi-chevron-down";
+    }
+}
+
+function toggleTokenVisibility() {
+    const inp = document.getElementById("xingleTokenInput");
+    const eye = document.getElementById("tokenEyeIcon");
+    if (inp.type === "password") {
+        inp.type = "text";
+        eye.className = "bi bi-eye-slash";
+    } else {
+        inp.type = "password";
+        eye.className = "bi bi-eye";
+    }
+}
+
+async function loadXingleConfig() {
+    try {
+        const cfg = await api("GET", "/api/xingle/config");
+        _xingleConfig = cfg;
+        document.getElementById("xingleRate").value = cfg.usd_inr_rate;
+        document.getElementById("xingleFreight").value = cfg.freight_pct;
+        document.getElementById("xingleCustoms").value = cfg.customs_duty_pct;
+        document.getElementById("xingleHandling").value = cfg.handling_inr_per_unit;
+        document.getElementById("xingleMarkup").value = cfg.markup || 1.4;
+        document.getElementById("xingleTokenInput").value = "";
+        const status = document.getElementById("xingleTokenStatus");
+        if (cfg.token_set) {
+            status.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Token: ${cfg.token_masked}</span>`;
+        } else {
+            status.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>No token set — paste your Bearer token above</span>';
+        }
+    } catch (e) {
+        toast("Failed to load XingleToy config: " + e.message, "danger");
+    }
+}
+
+async function saveXingleConfig() {
+    const token = document.getElementById("xingleTokenInput").value.trim();
+    const data = {
+        usd_inr_rate: parseFloat(document.getElementById("xingleRate").value) || 84,
+        freight_pct: parseFloat(document.getElementById("xingleFreight").value) || 8,
+        customs_duty_pct: parseFloat(document.getElementById("xingleCustoms").value) || 10,
+        handling_inr_per_unit: parseFloat(document.getElementById("xingleHandling").value) || 30,
+        markup: parseFloat(document.getElementById("xingleMarkup").value) || 1.4,
+    };
+    if (token) data.token = token;
+    try {
+        await api("POST", "/api/xingle/config", data);
+        toast("XingleToy settings saved");
+        loadXingleConfig();
+    } catch (e) {
+        toast("Save failed: " + e.message, "danger");
+    }
+}
+
+async function searchXingle() {
+    const keyword = document.getElementById("xingleSearchInput").value.trim();
+    if (!keyword) {
+        toast("Enter a search keyword", "warning");
+        return;
+    }
+    const status = document.getElementById("xingleSearchStatus");
+    status.innerHTML = '<span class="text-primary"><i class="bi bi-hourglass-split me-1"></i>Searching XingleToy catalog...</span>';
+
+    try {
+        const result = await api("POST", "/api/xingle/search", { keyword });
+        _xingleResults = result.items || [];
+        _xingleConfig = { ..._xingleConfig, ...result.config };
+        renderXingleResults(result);
+        status.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Found ${result.total} products — showing ${_xingleResults.length}</span>`;
+    } catch (e) {
+        _xingleResults = [];
+        status.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>${e.message}</span>`;
+        document.getElementById("xingleResultsArea").classList.add("d-none");
+    }
+}
+
+function renderXingleResults(result) {
+    const items = result.items;
+    const cfg = result.config;
+    const markup = parseFloat(document.getElementById("xingleMarkup").value) || 1.4;
+    document.getElementById("xingleMarkupHeader").textContent = markup;
+
+    if (!items || items.length === 0) {
+        document.getElementById("xingleResultsArea").classList.add("d-none");
+        return;
+    }
+    document.getElementById("xingleResultsArea").classList.remove("d-none");
+
+    // Summary
+    document.getElementById("xingleTotalProducts").textContent = items.length;
+    const landedPrices = items.map(i => i.landed_inr);
+    const minLanded = Math.min(...landedPrices);
+    const maxLanded = Math.max(...landedPrices);
+    document.getElementById("xinglePriceRange").textContent = `${fmt(minLanded)} – ${fmt(maxLanded)}`;
+    const cheapest = items.reduce((a, b) => a.base_usd < b.base_usd ? a : b);
+    document.getElementById("xingleCheapest").textContent = `${cheapest.name.substring(0, 20)} @ ${fmtUSD(cheapest.base_usd)}`;
+    document.getElementById("xingleParamSummary").innerHTML =
+        `₹${cfg.usd_inr_rate}/$ · ${cfg.freight_pct}% ship · ${cfg.customs_duty_pct}% duty · ₹${cfg.handling_inr_per_unit}/unit`;
+
+    // Table
+    const tbody = document.getElementById("xingleResultsTable");
+    tbody.innerHTML = items.map(item => {
+        const sellPrice = Math.ceil(item.landed_inr * markup);
+        const marginClass = markup > 1 ? "text-success" : "text-warning";
+        const tags = (item.tags || []).map(t => `<span class="badge bg-secondary me-1" style="font-size:10px">${t}</span>`).join("");
+        const types = (item.types || []).map(t => `<span class="badge bg-dark border me-1" style="font-size:10px">${t}</span>`).join("");
+        const badges = [];
+        if (item.hot) badges.push('<span class="badge bg-danger" style="font-size:10px">HOT</span>');
+        if (item.newest) badges.push('<span class="badge bg-info" style="font-size:10px">NEW</span>');
+        if (item.discount_pct > 0) badges.push(`<span class="badge bg-warning text-dark" style="font-size:10px">-${item.discount_pct}%</span>`);
+
+        return `<tr>
+            <td><img src="${item.thumbnail}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px" onerror="this.style.display='none'"></td>
+            <td>
+                <div class="small fw-bold">${item.name}</div>
+                <div class="text-secondary" style="font-size:10px;font-family:monospace">${item.id}</div>
+                <div>${types}${badges.join(" ")}</div>
+            </td>
+            <td class="text-end mono">${fmtUSD(item.base_usd)}</td>
+            <td class="text-end mono">${fmt(item.base_inr)}</td>
+            <td class="text-end mono small text-secondary">${fmt(item.freight_inr)}</td>
+            <td class="text-end mono small text-secondary">${fmt(item.customs_inr)}</td>
+            <td class="text-end mono small text-secondary">${fmt(item.handling_inr)}</td>
+            <td class="text-end mono fw-bold">${fmt(item.landed_inr)}</td>
+            <td class="text-end mono fw-bold ${marginClass}">${fmt(sellPrice)}</td>
+            <td class="text-center">${item.moq}</td>
+            <td>${tags}</td>
+            <td>
+                <button class="btn btn-outline-secondary btn-sm py-0 px-1" title="Copy pricing to clipboard"
+                    onclick="copyXingleRow('${item.name.replace(/'/g, "\\'")}', ${item.base_usd}, ${item.landed_inr}, ${sellPrice})">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join("");
+}
+
+function copyXingleRow(name, usd, landed, sell) {
+    const text = `${name}\nXingle: $${usd.toFixed(2)} USD | Landed: ₹${landed.toFixed(0)} | Suggested Sell: ₹${sell}`;
+    navigator.clipboard.writeText(text).then(() => {
+        toast("Copied to clipboard");
+    }).catch(() => {
+        toast("Copy failed", "warning");
+    });
+}
+
+function clearXingleResults() {
+    _xingleResults = [];
+    document.getElementById("xingleSearchInput").value = "";
+    document.getElementById("xingleSearchStatus").innerHTML = "";
+    document.getElementById("xingleResultsArea").classList.add("d-none");
+}
+
+function exportXingleCSV() {
+    if (_xingleResults.length === 0) {
+        toast("No results to export", "warning");
+        return;
+    }
+    const markup = parseFloat(document.getElementById("xingleMarkup").value) || 1.4;
+    const headers = ["Product", "USD", "Base INR", "Freight", "Customs", "Handling", "Landed INR", `Sell @ ${markup}×`, "MOQ", "Tags"];
+    const data = _xingleResults.map(i => [
+        i.name, i.base_usd, i.base_inr, i.freight_inr, i.customs_inr, i.handling_inr,
+        i.landed_inr, Math.ceil(i.landed_inr * markup), i.moq, (i.tags || []).join("; ")
+    ]);
+    const csv = [headers.join(","), ...data.map(r => r.map(c => {
+        const s = String(c);
+        return s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `xingle_prices_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast("Exported XingleToy prices CSV");
 }
 
 // ── Init ──────────────────────────────────────────

@@ -69,6 +69,11 @@
                     <i class="bi bi-cash-stack me-1"></i>Revenue
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" data-tab="xingle">
+                    <i class="bi bi-search me-1"></i>Xingle Price
+                </button>
+            </li>
         </ul>
 
         <!-- ==================== DASHBOARD TAB ==================== -->
@@ -717,6 +722,153 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        </div>
+
+        <!-- ==================== XINGLE PRICE TAB ==================== -->
+        <div class="tab-pane d-none" id="tab-xingle">
+            <!-- Settings Panel -->
+            <div class="card mb-3" id="xingleSettingsCard">
+                <div class="card-header fw-bold d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleXingleSettings()">
+                    <span><i class="bi bi-gear me-1"></i>Settings & Cost Parameters</span>
+                    <i class="bi bi-chevron-down" id="xingleSettingsIcon"></i>
+                </div>
+                <div class="card-body d-none" id="xingleSettingsBody">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">XingleToy Bearer Token</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control" id="xingleTokenInput" placeholder="Paste your Bearer token here">
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleTokenVisibility()">
+                                    <i class="bi bi-eye" id="tokenEyeIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text" id="xingleTokenStatus">Not configured</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">USD → INR Rate</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" id="xingleRate" value="84.00">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Freight (%)</label>
+                            <input type="number" step="0.1" class="form-control form-control-sm" id="xingleFreight" value="8.0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Customs Duty (%)</label>
+                            <input type="number" step="0.1" class="form-control form-control-sm" id="xingleCustoms" value="10.0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Handling (₹/unit)</label>
+                            <input type="number" step="1" class="form-control form-control-sm" id="xingleHandling" value="30">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Markup Multiplier</label>
+                            <input type="number" step="0.1" class="form-control form-control-sm" id="xingleMarkup" value="1.4">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary btn-sm w-100" onclick="saveXingleConfig()">
+                                <i class="bi bi-check-lg me-1"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Search XingleToy Catalog</label>
+                            <input type="text" class="form-control form-control-sm" id="xingleSearchInput"
+                                   placeholder="e.g. GAN 12, MoYu V11, pyraminx, megaminx..."
+                                   onkeydown="if(event.key==='Enter'){event.preventDefault();searchXingle()}">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary btn-sm w-100" onclick="searchXingle()">
+                                <i class="bi bi-search me-1"></i>Search
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-secondary btn-sm w-100" onclick="clearXingleResults()">
+                                <i class="bi bi-x-lg me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div id="xingleSearchStatus" class="small text-secondary mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div id="xingleResultsArea" class="d-none">
+                <!-- Summary Cards -->
+                <div class="row g-2 mb-3" id="xingleSummaryCards">
+                    <div class="col-md-3">
+                        <div class="card text-bg-primary h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-white-50">Products Found</div>
+                                <h5 class="mb-0" id="xingleTotalProducts">0</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-bg-success h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-white-50">Price Range (Landed ₹)</div>
+                                <h5 class="mb-0" id="xinglePriceRange">--</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-bg-warning h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-white-50">Cheapest Item</div>
+                                <h5 class="mb-0" id="xingleCheapest">--</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-bg-info h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-white-50">Cost Parameters</div>
+                                <h6 class="mb-0" id="xingleParamSummary">--</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="card">
+                    <div class="card-header fw-bold d-flex justify-content-between">
+                        <span><i class="bi bi-list-ul me-1"></i>XingleToy Price Lookup</span>
+                        <button class="btn btn-outline-success btn-sm py-0" onclick="exportXingleCSV()">
+                            <i class="bi bi-download me-1"></i>Export CSV
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px"></th>
+                                        <th>Product</th>
+                                        <th class="text-end">USD</th>
+                                        <th class="text-end">Base ₹</th>
+                                        <th class="text-end">Freight</th>
+                                        <th class="text-end">Customs</th>
+                                        <th class="text-end">Handling</th>
+                                        <th class="text-end">Landed ₹</th>
+                                        <th class="text-end">Sell @ <span id="xingleMarkupHeader">1.4</span>×</th>
+                                        <th class="text-center">MOQ</th>
+                                        <th>Tags</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="xingleResultsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -1,7 +1,10 @@
-"""API routes for CubingIndia Dashboard (v5 - with Date Filters & Sales Trend)."""
+"""API routes for CubingIndia Dashboard (v6 - with XingleToy Price Lookup)."""
 from flask import Blueprint, request, jsonify
 from datetime import date, datetime
 from collections import defaultdict
+import json
+import os
+import urllib.request as _urllib
 import db
 from auth import login_required
 
@@ -803,3 +806,167 @@ def inventory_detail():
         })
 
     return ok(result)
+
+
+# ============================================================
+# XINGLETOY PRICE LOOKUP (config stored in Supabase)
+# ============================================================
+
+DEFAULT_XINGLE_CONFIG = {
+    "token": "",
+    "usd_inr_rate": 84.0,
+    "freight_pct": 8.0,
+    "handling_inr_per_unit": 30.0,
+    "customs_duty_pct": 10.0,
+    "markup": 1.4,
+}
+
+
+def _load_xingle_config():
+    rows = db.query("ci_xingle_config", filters={"id": "eq.default"})
+    if rows:
+        cfg = rows[0].get("config", {})
+        if isinstance(cfg, str):
+            cfg = json.loads(cfg)
+        return {**DEFAULT_XINGLE_CONFIG, **cfg}
+    return dict(DEFAULT_XINGLE_CONFIG)
+
+
+def _save_xingle_config(cfg):
+    db.update(
+        "ci_xingle_config",
+        {"config": cfg, "updated_at": datetime.utcnow().isoformat() + "Z"},
+        {"id": "eq.default"},
+    )
+
+
+@api.get("/api/xingle/config")
+def get_xingle_config():
+    cfg = _load_xingle_config()
+    masked = cfg.get("token", "")
+    if len(masked) > 10:
+        masked = masked[:6] + "..." + masked[-4:]
+    elif masked:
+        masked = "***set***"
+    else:
+        masked = ""
+    return ok({
+        "token_set": bool(cfg.get("token")),
+        "token_masked": masked,
+        "usd_inr_rate": cfg.get("usd_inr_rate", 84.0),
+        "freight_pct": cfg.get("freight_pct", 8.0),
+        "handling_inr_per_unit": cfg.get("handling_inr_per_unit", 30.0),
+        "customs_duty_pct": cfg.get("customs_duty_pct", 10.0),
+        "markup": cfg.get("markup", 1.4),
+    })
+
+
+@api.post("/api/xingle/config")
+def update_xingle_config():
+    d = request.get_json()
+    cfg = _load_xingle_config()
+    if "token" in d:
+        cfg["token"] = d["token"].strip()
+    if "usd_inr_rate" in d:
+        cfg["usd_inr_rate"] = float(d["usd_inr_rate"])
+    if "freight_pct" in d:
+        cfg["freight_pct"] = float(d["freight_pct"])
+    if "handling_inr_per_unit" in d:
+        cfg["handling_inr_per_unit"] = float(d["handling_inr_per_unit"])
+    if "customs_duty_pct" in d:
+        cfg["customs_duty_pct"] = float(d["customs_duty_pct"])
+    if "markup" in d:
+        cfg["markup"] = float(d["markup"])
+    _save_xingle_config(cfg)
+    return ok({"msg": "Config saved"})
+
+
+@api.post("/api/xingle/search")
+def xingle_search():
+    d = request.get_json()
+    keyword = d.get("keyword", "").strip()
+    if not keyword:
+        return fail("keyword required")
+
+    cfg = _load_xingle_config()
+    token = cfg.get("token", "")
+    if not token:
+        return fail("XingleToy API token not configured. Go to Settings tab and set your Bearer token.", 400)
+
+    xingle_body = json.dumps({
+        "keyword": keyword,
+        "page": 1,
+        "recPerPage": 50,
+    }).encode("utf-8")
+
+    xingle_headers = {
+        "Authorization": f"Bearer {token}",
+        "x-lang-type": "en",
+        "x-price-type": "USD",
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    req = _urllib.Request(
+        "https://mallapi.xingletoy.com/api/items/search",
+        data=xingle_body,
+        headers=xingle_headers,
+        method="POST",
+    )
+
+    try:
+        with _urllib.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+    except _urllib.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        if e.code == 401:
+            return fail("XingleToy API token expired or invalid. Update your Bearer token in Settings.", 401)
+        return fail(f"XingleToy API error ({e.code}): {body[:200]}", e.code)
+    except Exception as e:
+        return fail(f"Failed to reach XingleToy API: {str(e)}", 502)
+
+    items = result.get("data", [])
+    pager = result.get("pager", {})
+
+    rate = cfg["usd_inr_rate"]
+    freight_pct = cfg["freight_pct"]
+    handling_inr = cfg["handling_inr_per_unit"]
+    customs_pct = cfg["customs_duty_pct"]
+
+    enriched = []
+    for item in items:
+        base_usd = float(item.get("price", 0))
+        base_inr = base_usd * rate
+        freight_inr = base_inr * (freight_pct / 100)
+        customs_inr = base_inr * (customs_pct / 100)
+        landed_inr = base_inr + freight_inr + customs_inr + handling_inr
+
+        enriched.append({
+            "id": item.get("id", ""),
+            "name": item.get("name", ""),
+            "types": item.get("types", []),
+            "base_usd": round(base_usd, 2),
+            "base_inr": round(base_inr, 2),
+            "freight_inr": round(freight_inr, 2),
+            "customs_inr": round(customs_inr, 2),
+            "handling_inr": round(handling_inr, 2),
+            "landed_inr": round(landed_inr, 2),
+            "discount_pct": item.get("discountPercent", 0),
+            "moq": item.get("moq", 1),
+            "thumbnail": item.get("thumbnail", ""),
+            "tags": [t.get("name", "") for t in item.get("tags", [])],
+            "hot": item.get("hot", False),
+            "newest": item.get("newest", False),
+        })
+
+    return ok({
+        "items": enriched,
+        "total": pager.get("recTotal", len(enriched)),
+        "page": pager.get("page", 1),
+        "config": {
+            "usd_inr_rate": rate,
+            "freight_pct": freight_pct,
+            "handling_inr_per_unit": handling_inr,
+            "customs_duty_pct": customs_pct,
+        },
+    })
